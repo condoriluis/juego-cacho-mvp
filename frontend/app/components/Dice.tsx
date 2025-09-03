@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 
 type DiceProps = {
   value: number;
@@ -11,18 +11,20 @@ type DiceProps = {
   rolling?: boolean;
 };
 
-const diceVariants = {
+const diceVariants: Variants = {
   rolling: {
     rotateX: [0, 360, 720, 1080],
     rotateY: [0, 360, 720, 1080],
     scale: [1, 1.1, 1],
     transition: {
       duration: 1,
-      ease: ["easeOut"],
-      times: [0, 0.33, 0.66, 1],
-    }
+      ease: 'easeOut',
+      rotateX: { times: [0, 0.33, 0.66, 1] },
+      rotateY: { times: [0, 0.33, 0.66, 1] },
+      scale: { times: [0, 0.5, 1] },
+    },
   },
-  idle: { rotateX: 0, rotateY: 0, scale: 1 }
+  idle: { rotateX: 0, rotateY: 0, scale: 1 },
 };
 
 export default function Dice({ value, held, onClick, disabled, rolling }: DiceProps) {
