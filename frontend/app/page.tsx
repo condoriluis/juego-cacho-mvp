@@ -165,6 +165,9 @@ export default function Home() {
           <p>👥 Máximo 6 jugadores por sala</p>
           <p className="mt-1">Crea una sala y comparte el código con tus amigos</p>
         </div>
+        <div className="mt-2 text-center text-xs text-gray-400 dark:text-neutral-500 italic">
+          © {new Date().getFullYear()} Desarrollado por Luis Alberto
+        </div>
       </div>
       <Toaster />
     </div>
