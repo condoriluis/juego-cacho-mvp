@@ -11,23 +11,15 @@ type DiceProps = {
   rolling?: boolean;
 };
 
-const diceVariants:any = {
+const diceVariants = {
   rolling: {
     rotateX: [0, 360, 720, 1080],
     rotateY: [0, 360, 720, 1080],
     scale: [1, 1.1, 1],
     transition: {
       duration: 1,
-      ease: 'easeOut',
-      rotateX: {
-        times: [0, 0.33, 0.66, 1]
-      },
-      rotateY: {
-        times: [0, 0.33, 0.66, 1]
-      },
-      scale: {
-        times: [0, 0.5, 1]
-      }
+      ease: ["easeOut"],
+      times: [0, 0.33, 0.66, 1],
     }
   },
   idle: { rotateX: 0, rotateY: 0, scale: 1 }
