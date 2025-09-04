@@ -17,11 +17,20 @@ export type GameState = {
   maxRounds: number;
 };
 
+export type Reaction = {
+  id: string;
+  emoji: string;
+  playerId: string;
+  playerName: string;
+  timestamp: number;
+};
+
 export type Room = {
   code: string;
   hostId: string;
   players: Player[];
   gameState: GameState;
+  reactions?: Reaction[];
 };
 
 export enum Category {

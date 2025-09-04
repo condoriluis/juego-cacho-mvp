@@ -3,10 +3,12 @@ import React, { useEffect, useMemo, useState, useRef } from 'react'
 import { io } from 'socket.io-client'
 import { useParams, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { Category, GameState, Player } from '../../../lib/types'
+import { Category, GameState, Player, Reaction } from '../../../lib/types'
 import { animateDiceRoll } from '../../../lib/utils'
 import { AlertCircle, Play, Users, Dice2, Crown, Hash, User, Clock as ClockIcon, Bot } from 'lucide-react'
 import { toast } from 'sonner'
+import { EmojiPicker } from '../../../components/ui/emoji-picker'
+import { EmojiReactions } from '../../../components/ui/emoji-reactions'
 
 // Importar componentes dinámicamente para evitar problemas con RSC
 const Dice = dynamic(() => import('../../components/Dice'), { ssr: false })
@@ -49,6 +51,7 @@ export default function RoomPage() {
   })
   const [error, setError] = useState('')
   const [winner, setWinner] = useState<Player | null>(null)
+  const [reactions, setReactions] = useState<Reaction[]>([])
   
   const s = useMemo(() => getSocket(), [])
 
@@ -81,6 +84,7 @@ export default function RoomPage() {
         setRollsLeft(data.gameState.rollsLeft)
       }
       if (data.hostId) setHostId(data.hostId)
+      if (data.reactions) setReactions(data.reactions)
     })
     
     s.on('room:log', (ev: any) => setLog(prev => [...(prev.slice(-40)), JSON.stringify(ev)]))
@@ -142,12 +146,28 @@ export default function RoomPage() {
       sound.play().catch(err => console.error('Error al reproducir sonido de salida:', err));
     })
     
+    s.on('player:reaction', (reaction: Reaction) => {
+      // Actualizar el estado de reacciones cuando se recibe una nueva
+      setReactions(prev => [...prev, reaction]);
+      // No reproducimos el sonido genérico de reacción aquí para evitar duplicación
+      // El sonido específico del emoji se reproduce en el componente EmojiReactions
+    })
+    
+    s.on('player:reaction:error', (error: any) => {
+      if (error && error.error) {
+        toast.error(error.error)
+      }
+    })
+    
     s.on('connect_error', (err: any) => {
       console.error('Connection error:', err)
       setError('Error de conexión: ' + err.message)
     })
 
     return () => {
+      // Limpiar localStorage al salir de la sala
+      localStorage.removeItem('lastReactionTime');
+      
       s.off('room:update')
       s.off('room:log')
       s.off('game:rolled')
@@ -157,6 +177,8 @@ export default function RoomPage() {
       s.off('game:scored')
       s.off('player:joined')
       s.off('player:left')
+      s.off('player:reaction')
+      s.off('player:reaction:error')
       s.off('connect_error')
     }
   }, [s, code, name])
@@ -170,6 +192,7 @@ export default function RoomPage() {
 
   const diceSound = useRef<HTMLAudioElement | null>(null);
   const winnerSound = useRef<HTMLAudioElement | null>(null);
+  // Ya no necesitamos el sonido de reacción genérico
 
   // Inicializar los sonidos cuando el componente se monta
   useEffect(() => {
@@ -221,6 +244,33 @@ export default function RoomPage() {
     })
   }
 
+  const sendReaction = (emoji: string, name: string) => {
+    // Obtener el ID y nombre del jugador actual
+    const currentPlayer = players.find(p => p.id === s.id);
+    const playerId = currentPlayer?.id || s.id;
+    const playerName = currentPlayer?.name || name;
+    
+    // Control anti-spam: verificar el tiempo desde la última reacción enviada
+    const lastReactionTime = localStorage.getItem('lastReactionTime');
+    const now = Date.now();
+    const cooldownPeriod = 3000; // 3 segundos de espera entre emojis
+    
+    if (lastReactionTime && now - parseInt(lastReactionTime) < cooldownPeriod) {
+      // Si no ha pasado suficiente tiempo, mostrar mensaje y no enviar
+      toast.warning('Espera un momento antes de enviar otro emoji');
+      return;
+    }
+    
+    // Guardar el tiempo de esta reacción
+    localStorage.setItem('lastReactionTime', now.toString());
+    
+    s.emit('player:reaction', { roomCode: code, emoji, name, playerId, playerName }, (res: any) => {
+      if (!res?.ok) {
+        setError(res?.error || 'Error al enviar reacción')
+      }
+    })
+  }
+
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-red-50">
@@ -252,7 +302,7 @@ export default function RoomPage() {
           </div>
 
           {/* Información en dos filas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2">
             {/* Fila 1: Código y Reloj */}
             <div className="flex items-center justify-center md:justify-start gap-2 text-gray-600 dark:text-gray-300">
               <Hash className="w-5 h-5" />
@@ -280,7 +330,7 @@ export default function RoomPage() {
                     console.error('Error al copiar:', err);
                   }
                 }}
-                className="ml-2 p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                className="p-1 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 title="Copiar código"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
@@ -347,8 +397,8 @@ export default function RoomPage() {
           ))}
         </div>
       </div>
-      
-      {/* Game area */}
+        
+        {/* Game area */}
       {gameState.gameStarted && !winner ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Dice area */}
@@ -540,9 +590,16 @@ export default function RoomPage() {
 
       )}
       
+      {/* Emoji Reactions */}
+      <div className="mt-4 mb-4">
+        <EmojiReactions reactions={reactions} />
+      </div>
+
       {/* Game log */}
       <div className="mt-4 bg-white dark:bg-neutral-900 p-4 rounded-lg shadow">
-        <h3 className="font-medium mb-2">Registro del juego</h3>
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="font-medium">Registro del juego</h3>
+        </div>
         <div className="bg-white dark:bg-neutral-900 p-2 rounded h-32 overflow-y-auto text-xs font-mono">
           {log.length === 0 ? (
             <p className="text-gray-400 italic">No hay eventos registrados</p>
@@ -551,6 +608,11 @@ export default function RoomPage() {
               <div key={i} className="mb-1">{entry}</div>
             ))
           )}
+        </div>
+      </div>
+      <div className="fixed bottom-4 right-4 z-50">
+        <div className="bg-white dark:bg-neutral-900 rounded-full" title="Reacciones">
+          <EmojiPicker onEmojiSelect={sendReaction} />
         </div>
       </div>
     </div>

@@ -34,7 +34,7 @@ const SCORES = {
 }
 
 // In-memory stores (MVP). For production use a DB + Redis adapter.
-const rooms = {} // code -> { code, hostId, players: [{id,name,score}], gameState }
+const rooms = {} // code -> { code, hostId, players: [{id,name,score}], gameState, reactions: [] }
 
 function makeCode() {
   return crypto.randomBytes(3).toString('hex').toUpperCase()
@@ -212,7 +212,8 @@ function playBotTurn(roomCode, botPlayer) {
     
     io.to(roomCode).emit('room:update', { 
       players: room.players,
-      gameState: game
+      gameState: game,
+      reactions: room.reactions
     })
   }, 1000)
 }
@@ -288,14 +289,16 @@ io.on('connection', (socket) => {
         gameStarted: false,
         round: 1,
         maxRounds: 11 // Una ronda por cada categoría
-      }
+      },
+      reactions: [] // Array para almacenar las reacciones de emojis
     }
     socket.join(code)
     cb && cb({ ok: true, roomCode: code })
     io.to(code).emit('room:update', { 
       players: rooms[code].players,
       gameState: rooms[code].gameState,
-      hostId: rooms[code].hostId
+      hostId: rooms[code].hostId,
+      reactions: rooms[code].reactions
     })
     io.to(code).emit('room:log', { event: 'room:created', code })
   })
@@ -327,7 +330,8 @@ io.on('connection', (socket) => {
       io.to(code).emit('room:update', { 
         players: room.players,
         gameState: room.gameState,
-        hostId: room.hostId
+        hostId: room.hostId,
+        reactions: room.reactions
       })
       io.to(code).emit('room:log', { 
         event: 'player:reconnected', 
@@ -402,7 +406,8 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('room:update', { 
       players: room.players,
       gameState: room.gameState,
-      hostId: room.hostId
+      hostId: room.hostId,
+      reactions: room.reactions
     })
     
     io.to(roomCode).emit('room:log', { 
@@ -430,6 +435,61 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('room:log', { 
       event: 'player:left', 
       player: { name: playerName } 
+    })
+  })
+
+  // Manejar reacciones de emojis
+  socket.on('player:reaction', ({ roomCode, emoji, name, playerId, playerName }) => {
+    const room = rooms[roomCode]
+    if (!room) return
+    
+    // Sistema anti-spam: verificar tiempo desde la última reacción de este jugador
+    if (!room.playerLastReaction) {
+      room.playerLastReaction = {};
+    }
+    
+    const now = Date.now();
+    const cooldownPeriod = 3000; // 3 segundos entre emojis por jugador
+    const lastReactionTime = room.playerLastReaction[playerId];
+    
+    if (lastReactionTime && now - lastReactionTime < cooldownPeriod) {
+      // Si no ha pasado suficiente tiempo, rechazar la reacción
+      return socket.emit('player:reaction:error', { 
+        ok: false, 
+        error: 'Por favor espera antes de enviar otro emoji' 
+      });
+    }
+    
+    // Actualizar el tiempo de la última reacción de este jugador
+    room.playerLastReaction[playerId] = now;
+    
+    // Crear objeto de reacción
+    const reaction = {
+      id: crypto.randomBytes(4).toString('hex'),
+      emoji,
+      name, // Añadir el nombre del emoji para los sonidos
+      playerId,
+      playerName,
+      timestamp: now
+    }
+    
+    // Añadir la reacción al array de reacciones de la sala
+    room.reactions.push(reaction)
+    
+    // Limitar el número de reacciones almacenadas (mantener solo las últimas 20)
+    if (room.reactions.length > 20) {
+      room.reactions = room.reactions.slice(-20)
+    }
+    
+    // Emitir evento de reacción a todos los jugadores en la sala
+    io.to(roomCode).emit('player:reaction', reaction)
+    
+    // Emitir evento de log
+    io.to(roomCode).emit('room:log', {
+      event: 'player:reaction',
+      player: { id: playerId, name: playerName },
+      emoji: emoji,
+      name: name // Añadir el nombre del emoji al log
     })
   })
 
@@ -614,7 +674,8 @@ io.on('connection', (socket) => {
     
     io.to(roomCode).emit('room:update', { 
       players: room.players,
-      gameState: game
+      gameState: room.gameState,
+      reactions: room.reactions
     })
     
     cb && cb({ ok: true, score })
@@ -630,7 +691,11 @@ io.on('connection', (socket) => {
         // Si el juego está en curso, mantener al jugador en la lista pero marcarlo como desconectado
         if (room.gameState.gameStarted) {
           room.players[idx].disconnected = true
-          io.to(code).emit('room:update', { players: room.players })
+          io.to(code).emit('room:update', { 
+            players: room.players,
+            gameState: room.gameState,
+            reactions: room.reactions
+          })
           io.to(code).emit('room:log', { 
             event: 'player:disconnected', 
             id: room.players[idx].id,
@@ -669,9 +734,10 @@ io.on('connection', (socket) => {
           // Si el juego no ha comenzado, eliminar al jugador
           const [removed] = room.players.splice(idx, 1)
           io.to(code).emit('room:update', { 
-            players: room.players,
-            gameState: room.gameState
-          })
+      players: room.players,
+      gameState: room.gameState,
+      reactions: room.reactions
+    })
           io.to(code).emit('room:log', { 
             event: 'player:left', 
             id: removed.id,

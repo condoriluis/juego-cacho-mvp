@@ -21,17 +21,12 @@ function getSocket() {
 }
 
 function generateRandomName() {
-  const adjectives = [
-    'Implacable', 'Legendario', 'Épico', 'Invencible', 'Letal', 
-    'Rudo', 'Ágil', 'Audaz', 'Guerrero', 'Poderoso'
-  ];
-  
   // 20 luchadores populares de WWE
   const wrestlers = [
     'The Rock',
     'John Cena',
     'The Undertaker',
-    'Stone Cold Steve Austin',
+    'Stone Cold',
     'Triple H',
     'Hulk Hogan',
     'Randy Orton',
@@ -50,10 +45,9 @@ function generateRandomName() {
     'Sheamus'
   ];
   
-  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
   const wrestler = wrestlers[Math.floor(Math.random() * wrestlers.length)];
   
-  return `${adj} ${wrestler}`;
+  return `${wrestler}`;
 }
 
 export default function Home() {
