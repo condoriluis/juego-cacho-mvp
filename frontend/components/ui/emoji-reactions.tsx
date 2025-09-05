@@ -17,27 +17,22 @@ type EmojiReactionsProps = {
 }
 
 export function EmojiReactions({ reactions }: EmojiReactionsProps) {
-  // Filtrar solo las reacciones recientes (últimos 5 segundos)
+
   const [visibleReactions, setVisibleReactions] = useState<Reaction[]>([])
   
   useEffect(() => {
-    // Actualizar las reacciones visibles cuando cambian las reacciones
     const now = Date.now()
     const recent = reactions.filter(r => now - r.timestamp < 5000)
     setVisibleReactions(recent)
     
-    // Reproducir sonido para la reacción más reciente
     if (reactions.length > 0) {
       const latestReaction = reactions[reactions.length - 1]
       const lastReactionIdStored = localStorage.getItem('lastReactionId')
       
-      // Solo reproducir sonido si es una reacción nueva
       if (latestReaction.id !== lastReactionIdStored) {
         localStorage.setItem('lastReactionId', latestReaction.id)
         
-        // Reproducir el sonido específico para este emoji usando el name
         try {
-          // Si tenemos el name del emoji, usamos ese para el sonido
           const soundPath = latestReaction.name 
             ? `/sounds/emoji/${latestReaction.name}.mp3`
             : `/sounds/emoji/${latestReaction.emoji}.mp3`
@@ -45,7 +40,6 @@ export function EmojiReactions({ reactions }: EmojiReactionsProps) {
           const sound = new Audio(soundPath)
           sound.play().catch(err => {
             console.error(`Error al reproducir sonido para emoji ${latestReaction.name || latestReaction.emoji}:`, err)
-            // No reproducimos el sonido de respaldo para evitar duplicación
           })
         } catch (err) {
           console.error('Error al crear objeto de audio:', err)
@@ -53,7 +47,6 @@ export function EmojiReactions({ reactions }: EmojiReactionsProps) {
       }
     }
     
-    // Configurar un intervalo para limpiar las reacciones antiguas
     const interval = setInterval(() => {
       const now = Date.now()
       setVisibleReactions(prev => prev.filter(r => now - r.timestamp < 5000))
@@ -65,7 +58,6 @@ export function EmojiReactions({ reactions }: EmojiReactionsProps) {
   return (
     <>
       
-      {/* Reacciones en la esquina */}
       <div className="fixed bottom-4 right-14 z-50 flex items-center space-y-2 space-x-2">
         <AnimatePresence>
           {visibleReactions.map((reaction) => (

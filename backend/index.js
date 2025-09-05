@@ -4,10 +4,19 @@ const { Server } = require('socket.io')
 const crypto = require('crypto')
 
 const app = express()
-const server = http.createServer(app)
-const io = new Server(server, { cors: { origin: true } })
+const server = http.createServer(app);
 
-const PORT = process.env.PORT || 4000
+const frontendOrigin = process.env.FRONTEND_URL || "http://localhost:3000";
+
+const io = new Server(server, {
+  cors: {
+    origin: [frontendOrigin],
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
+const PORT = process.env.PORT || 5000
 
 // Categorías de puntaje en Cacho
 const CATEGORIES = {
@@ -734,10 +743,10 @@ io.on('connection', (socket) => {
           // Si el juego no ha comenzado, eliminar al jugador
           const [removed] = room.players.splice(idx, 1)
           io.to(code).emit('room:update', { 
-      players: room.players,
-      gameState: room.gameState,
-      reactions: room.reactions
-    })
+            players: room.players,
+            gameState: room.gameState,
+            reactions: room.reactions
+          })
           io.to(code).emit('room:log', { 
             event: 'player:left', 
             id: removed.id,

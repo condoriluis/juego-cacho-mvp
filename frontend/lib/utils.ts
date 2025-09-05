@@ -5,7 +5,7 @@ import { twMerge } from "tailwind-merge"
 
 // Función para calcular el valor de una categoría dado un conjunto de dados
 export function calculateCategoryValue(dice: number[], category: Category): number {
-  // Contar ocurrencias de cada número
+ 
   const counts: Record<number, number> = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0};
   dice.forEach(d => counts[d]++);
   

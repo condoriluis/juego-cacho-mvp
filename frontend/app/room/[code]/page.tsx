@@ -365,21 +365,9 @@ export default function RoomPage() {
             </div>
           </div>
 
-          {/* Botón de inicio centrado */}
-          {isHost && !gameState.gameStarted && players.length >= 2 && (
-            <div className="flex justify-center mt-2">
-              <button
-                onClick={startGame}
-                className="px-6 py-2 bg-green-600 text-white font-medium rounded-lg shadow-md hover:bg-green-700 transition-all duration-200 hover:shadow-lg flex items-center gap-2"
-              >
-                <Play className="w-5 h-5" />
-                Iniciar juego
-              </button>
-            </div>
-          )}
         </div>
             
-        </div>
+      </div>
       
       {/* Players */}
       <div className="border-1 bg-white dark:bg-neutral-900 p-4 rounded-lg shadow mb-4">
