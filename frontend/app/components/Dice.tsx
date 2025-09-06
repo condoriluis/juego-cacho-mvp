@@ -143,7 +143,7 @@ export default function Dice({ value, held, onClick, disabled, rolling }: DicePr
   return (
     <motion.div
       className={`relative w-16 h-16 rounded-lg shadow-lg border border-gray-300 cursor-pointer
-        ${held ? 'ring-2 ring-green-500 bg-green-100 dark:bg-green-400' : 'bg-white dark:bg-neutral-200'}
+        ${held ? 'ring-2 ring-green-500 bg-green-100 dark:bg-green-200 dark:border-green-100' : 'bg-white dark:bg-neutral-200'}
         ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
       onClick={disabled ? undefined : onClick}
       variants={diceVariants}

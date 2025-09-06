@@ -105,16 +105,21 @@ export default function RoomPage() {
         )
         setIsRolling(false)
         setDice(payload.dice)
+        
+        // Asegurarse de que el botón se desbloquee después de la animación
+        setIsButtonLocked(false);
       }
       if (payload.rollsLeft !== undefined) setRollsLeft(payload.rollsLeft)
     })
     
     s.on('game:started', () => {
-      setHeld([false, false, false, false, false])
+      setHeld([false, false, false, false, false]);
+      setIsButtonLocked(false); // Desbloquear el botón al iniciar el juego
     })
     
     s.on('game:nextTurn', () => {
-      setHeld([false, false, false, false, false])
+      setHeld([false, false, false, false, false]);
+      setIsButtonLocked(false); // Desbloquear el botón al cambiar de turno
     })
     
     s.on('game:ended', (data: any) => {
@@ -149,8 +154,6 @@ export default function RoomPage() {
     s.on('player:reaction', (reaction: Reaction) => {
       // Actualizar el estado de reacciones cuando se recibe una nueva
       setReactions(prev => [...prev, reaction]);
-      // No reproducimos el sonido genérico de reacción aquí para evitar duplicación
-      // El sonido específico del emoji se reproduce en el componente EmojiReactions
     })
     
     s.on('player:reaction:error', (error: any) => {
@@ -192,7 +195,6 @@ export default function RoomPage() {
 
   const diceSound = useRef<HTMLAudioElement | null>(null);
   const winnerSound = useRef<HTMLAudioElement | null>(null);
-  // Ya no necesitamos el sonido de reacción genérico
 
   // Inicializar los sonidos cuando el componente se monta
   useEffect(() => {
@@ -210,8 +212,15 @@ export default function RoomPage() {
     };
   }, []);
 
+  // Variable para controlar el estado de bloqueo del botón
+  const [isButtonLocked, setIsButtonLocked] = useState(false);
+
   const requestRoll = () => {
-    if (!isMyTurn || rollsLeft <= 0 || isRolling) return
+    // Verificar si el botón está bloqueado o si no es el turno del jugador o si no quedan tiradas
+    if (!isMyTurn || rollsLeft <= 0 || isRolling || isButtonLocked) return
+    
+    // Bloquear el botón inmediatamente para evitar múltiples clics
+    setIsButtonLocked(true);
     
     // Reproducir el sonido de los dados
     if (diceSound.current) {
@@ -223,6 +232,12 @@ export default function RoomPage() {
       if (!res.ok) {
         setError(res.error || 'Error al lanzar dados')
       }
+      
+      // Desbloquear el botón después de un tiempo para permitir la siguiente tirada
+      // pero solo cuando el servidor haya respondido
+      setTimeout(() => {
+        setIsButtonLocked(false);
+      }, 1000); // 1 segundo de bloqueo
     })
   }
   
@@ -421,11 +436,11 @@ export default function RoomPage() {
               <div className="flex justify-between items-center mt-4">
                 <button
                   onClick={requestRoll}
-                  disabled={!isMyTurn || rollsLeft <= 0 || isRolling}
+                  disabled={!isMyTurn || rollsLeft <= 0 || isRolling || isButtonLocked}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Dice2 className="w-5 h-5" />
-                  {isRolling ? 'Lanzando...' : 'Lanzar dados'}
+                  {isRolling ? 'Lanzando...' : isButtonLocked ? 'Procesando...' : 'Lanzar dados'}
                 </button>
                 <div className="text-md font-medium">
                   Tiradas: {rollsLeft}/3

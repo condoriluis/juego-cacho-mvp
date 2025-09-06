@@ -14,6 +14,8 @@ const EMOJIS = [
   { icon: '😡', name: 'enojo' }, 
   { icon: '👍', name: 'like' },  
   { icon: '👏', name: 'aplausos' }, 
+  { icon: '🙌', name: 'bendicion' },
+  { icon: '🤬', name: 'enojado' },
   { icon: '🎉', name: 'celebrar' }, 
   { icon: '🎲', name: 'dados' },
 ]
